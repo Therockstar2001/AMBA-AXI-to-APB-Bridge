@@ -1,0 +1,25 @@
+# Questa / ModelSim / QuestaSim generated files
+work/
+transcript
+vsim.wlf
+*.wlf
+*.log
+*.jou
+*.pb
+*.ini
+modelsim.ini
+
+# Simulation outputs
+*.vcd
+*.ucdb
+*.dbg
+*.bak
+
+# Temporary/editor files
+*~
+*.swp
+.DS_Store
+
+# OS / Python extras if any
+__pycache__/
+*.pyc
