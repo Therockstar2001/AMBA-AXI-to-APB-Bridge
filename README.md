@@ -1,117 +1,64 @@
-### Project: AXI4-Lite to APB Bridge
+### Project: AXI4-Lite to APB Bridge with Verification
 
 ## Overview
-This project implements a synthesizable bridge converting AXI4-Lite transactions into APB protocol transactions. 
-The design handles both read and write paths, supports wait-state insertion, and propagates error conditions from APB to AXI.
+Designed and verified a synthesizable AXI4-Lite to APB bridge implementing full read/write data paths, protocol-compliant handshake logic, and error propagation. The design supports backpressure via APB wait-states and ensures cycle-accurate transaction translation.
 
-## Architecture
+## Design Architecture
+* AXI Channels: AW, W, B, AR, R
+* APB Interface: PSEL, PENABLE, PWRITE, PREADY, PSLVERR
+* FSM-based control for read/write sequencing
+* Two-phase APB protocol enforcement (setup + enable)
 
-# AXI Side
+## Key Features
+* AXI VALID/READY handshake compliance
+* APB wait-state handling via PREADY
+* Error mapping: PSLVERR → AXI BRESP/RRESP
+* Back-to-back transaction support
+* No data loss under stall conditions
 
-Channels:
--> Write Address (AW)
--> Write Data (W)
--> Write Response (B)
--> Read Address (AR)
--> Read Data (R)
+## Verification Environment
+* SystemVerilog-based testbench
+* Components:
+    * Driver
+    * Monitor
+    * Scoreboard (self-checking)
+    * Functional Coverage
 
-Handshake:
--> VALID/READY based flow control
+## Test Scenarios
+* Directed tests (basic read/write)
+* Constrained-random tests (stress traffic)
+* Error injection (invalid address)
+* Backpressure validation (PREADY stalls)
 
-# APB Side
+## Regression & Automation
+* Automated regression using Makefile
+* Batch execution of multiple testcases
+* Per-test log generation
+* PASS/FAIL detection using log parsing
+    * Command:- make all
 
-Signals:
--> PSEL (select)
--> PENABLE (phase control)
--> PWRITE (direction)
--> PADDR, PWDATA, PRDATA
--> PREADY (wait-state control)
--> PSLVERR (error signal)
+## Results
+* All testcases pass regression
+* Coverage ~40% (extendable with additional scenarios)
+* No protocol violations observed
+* Stable under backpressure and error conditions
 
-## Transaction Flow
+## Tools
+* SystemVerilog
+* QuestaSim
+* Linux (Makefile-based automation)
 
-# Write Transaction
-AXI accepts AWADDR via AWVALID/AWREADY
-AXI accepts WDATA via WVALID/WREADY
-Bridge initiates APB setup phase:
-    -> PSEL = 1, PENABLE = 0
-APB enable phase:
-    -> PENABLE = 1
-Wait for PREADY
-Generate AXI response:
-    -> BVALID = 1
-    -> BRESP = OKAY / SLVERR
+## How to Run
+vlib work
+vlog *.sv
+vsim axi_basic_test
 
-# Read Transaction
-AXI accepts ARADDR via ARVALID/ARREADY
-APB setup + enable phase
-PRDATA captured
-AXI response:
-    -> RVALID = 1
-    -> RDATA = PRDATA
-    -> RRESP = OKAY / SLVERR
+or:
 
-## Wait-State Handling
-APB slave can delay transfer using PREADY = 0
-Bridge holds transaction in enable phase until PREADY = 1
-AXI response is delayed accordingly
-Ensures protocol-safe backpressure propagation
+make all
 
-## Error Handling
-Invalid address region triggers:
-    -> PSLVERR = 1
-Bridge maps:
-    -> PSLVERR → BRESP = 2 (SLVERR)
-    -> PSLVERR → RRESP = 2 (SLVERR)
-
-## Verification Strategy
-
-# Environment
-Simulator: QuestaSim
-Testbench: SystemVerilog
-
-# Scenarios Covered
-Valid write transactions
-Valid read transactions
-Back-to-back traffic (stress behavior)
-Wait-state insertion via configurable delay
-Error injection (invalid address access)
-
-# Observations
-AXI to APB mapping is cycle-accurate
-APB two-phase protocol strictly followed
-Wait-state propagation verified (PREADY stalls)
-Error propagation verified across both read/write paths
-
-## Waveform Insights
-Due to dense traffic generation, waveforms show continuous transactions.
-Key behaviors validated include:
-
-Proper handshake synchronization
-Correct APB phase transitions
-Accurate response timing
-No protocol violations under backpressure
-
-## Design Decisions
-Chose AXI4-Lite for simplicity (no burst handling)
-Implemented FSM-based bridge control
-Explicit separation of read/write paths
-Configurable wait-state generation for realism
-
-## Key Takeaways
-Deep understanding of AXI and APB protocols
-Experience with handshake-driven designs
-Exposure to real hardware behavior (latency, stalls, errors)
-Practical verification using waveform-based debugging
-
-## Tools & Technologies
-SystemVerilog
-QuestaSim
-Digital Design (RTL)
-Bus Protocols: AXI4-Lite, APB
-
-## Future Improvements (optional)
-Add UVM-based verification environment
-Functional coverage collection
-Formal protocol checking (SVA)
-Burst support (AXI full)
+## Future Improvements
+* UVM-based environment
+* Coverage closure strategy
+* Assertion-based verification (SVA)
+* Multi-seed regression
