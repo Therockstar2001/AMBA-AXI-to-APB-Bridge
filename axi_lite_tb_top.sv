@@ -119,6 +119,8 @@ module axi_lite_tb_top;
         end
 
         repeat (10) @(posedge ACLK);
+	#50;
+	env.cov.report();
         $finish;
     end
 

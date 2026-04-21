@@ -8,6 +8,7 @@ package axi_lite_monitor_sv_unit;
 
         virtual axi_lite_if.slave vif;
         mailbox #(axi_lite_trans) mon2scb;
+	mailbox #(axi_lite_trans) mon2cov;
 
         // hold accepted channel information until response completes
         bit [31:0] awaddr_q;
@@ -20,9 +21,11 @@ package axi_lite_monitor_sv_unit;
         bit        have_ar;
 
         function new(virtual axi_lite_if.slave vif,
-                     mailbox #(axi_lite_trans) mon2scb);
+                     mailbox #(axi_lite_trans) mon2scb,
+		     mailbox #(axi_lite_trans) mon2cov);
             this.vif     = vif;
             this.mon2scb = mon2scb;
+	    this.mon2cov = mon2cov;
 
             have_aw = 1'b0;
             have_w  = 1'b0;
@@ -100,6 +103,7 @@ package axi_lite_monitor_sv_unit;
                         tr.bresp = '0;
 
                         mon2scb.put(tr);
+			mon2cov.put(tr);
                         tr.display("MON_READ");
 
                         have_ar = 1'b0;
