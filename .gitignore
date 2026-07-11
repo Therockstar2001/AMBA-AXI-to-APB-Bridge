@@ -1,25 +1,57 @@
 # System generated files
+# ------------------------------------------------------------------------------
+# Generic EDA Simulation & Tool Artifacts
+# ------------------------------------------------------------------------------
+
+# ModelSim / QuestaSim / Riviera-PRO
 work/
+msim/
 transcript
-vsim.wlf
 *.wlf
-*.log
-*.jou
-*.pb
+*.mpf
+*.cr.mti
 *.ini
 modelsim.ini
 
-# Simulation outputs
+# Synopsys VCS
+simv
+simv.daidir/
+simv.vdb/
+csrc/
+ucli.key
+*.key
+
+# Xilinx Vivado / Xsim
+xsim.dir/
+*.jou
+*.pb
+*.log
+xsim*.backup
+webtalk*.log
+webtalk*.pb
+
+# Verilator
+obj_dir/
+*.mk
+
+# ------------------------------------------------------------------------------
+# Simulation Outputs & Waveforms
+# ------------------------------------------------------------------------------
+logs/
 *.vcd
+*.fsdb
+*.shm
 *.ucdb
 *.dbg
-*.bak
 
-# Temporary/editor files
+# ------------------------------------------------------------------------------
+# Editor Backup & OS Files
+# ------------------------------------------------------------------------------
+*.bak
 *~
 *.swp
 .DS_Store
 
-# OS / Python extras if any
+# Python extras
 __pycache__/
 *.pyc
