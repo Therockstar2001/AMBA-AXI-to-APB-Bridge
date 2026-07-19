@@ -204,6 +204,76 @@ Verification successfully demonstrated:
 * Self-checking verification with functional coverage
 * Automated regression execution across multiple verification scenarios
 ________________________________________
+## Formal Verification
+* Modern SoC interface IP requires verification beyond simulation to establish protocol correctness under all legal input scenarios. In addition to simulation-based verification, this project employs Assertion-Based Formal Verification using SymbiYosys, Yosys, and the Boolector SMT solver to mathematically prove safety properties of the AXI4-Lite to APB bridge without relying on constrained-random stimulus or directed testcases.
+* A dedicated formal environment was developed around the bridge consisting of a top-level formal harness (formal_top.sv), a reusable property library (properties.sv), and SymbiYosys proof scripts. The environment models protocol-compliant AXI and APB behavior through carefully constructed assumptions while allowing the solver to explore all legal transaction sequences within the specified proof bounds.
+* Unlike simulation, which validates individual execution scenarios, formal verification exhaustively analyzes all reachable states under the defined assumptions. This complements the simulation environment by proving protocol invariants, transaction correctness, and corner-case behavior that would be difficult or impractical to achieve through stimulus generation alone.
+________________________________________
+## Formal Verification Methodology
+* The formal verification environment was developed incrementally, beginning with basic safety properties and progressively expanding toward complete protocol verification. Properties were organized into logical verification phases covering reset behavior, finite state machine correctness, APB protocol compliance, AXI4-Lite protocol compliance, transaction data integrity, response generation, error propagation, and transaction reachability.
+* Additional protocol assumptions were introduced to model compliant AXI master behavior, while bounded fairness constraints were incorporated to represent realistic APB peripheral latency and AXI response acceptance. These assumptions prevent unrealistic solver behavior while maintaining a valid proof environment representative of practical hardware operation.
+* The verification flow was executed using SymbiYosys with Boolector as the SMT solver, providing assertion proofs for safety properties together with cover analysis to demonstrate transaction reachability.
+________________________________________
+## Proven Properties
+The formal verification environment establishes mathematical correctness for the following categories of properties:
+
+# Reset and Initialization
+* Correct reset initialization of internal bridge state.
+* Safe recovery from reset without illegal protocol behavior.
+
+# FSM Correctness
+* Legal state transitions only.
+* No unreachable or invalid FSM states.
+* Deterministic transaction sequencing throughout bridge operation.
+
+# APB Protocol Compliance
+* Correct two-phase APB transfer generation.
+* Stable address, control, and write data during APB wait states.
+* Proper handling of delayed PREADY responses.
+
+# AXI4-Lite Protocol Compliance
+* Correct acceptance of independent AXI address and data channels.
+* Stable AXI responses while stalled by the master.
+* Correct request capture prior to APB transaction generation.
+* Proper response persistence until handshake completion.
+
+# Transaction Integrity
+* Correct propagation of AXI write address and write data into APB transactions.
+* Correct propagation of APB read data back to the AXI read channel.
+* Preservation of transaction ordering across protocol translation.
+
+# Error Propagation
+* Correct translation of APB PSLVERR into AXI SLVERR responses.
+* Verified behavior for both read and write error transactions.
+
+# Bounded Progress
+* Verification that accepted transactions complete within the defined bounded execution window under the specified fairness assumptions.
+* Prevention of illegal simultaneous outstanding read and write transactions within the bridge architecture.
+________________________________________
+## Cover Property Verification
+In addition to assertion proofs, cover properties were developed to demonstrate that valid transaction scenarios remain reachable under the formal assumptions. Cover analysis confirms successful exploration of representative operating conditions including:
+* Successful AXI write transactions.
+* Successful AXI read transactions.
+* APB error propagation during write operations.
+* APB error propagation during read operations.
+* Complete end-to-end write transaction execution.
+* Complete end-to-end read transaction execution.
+Successful cover convergence demonstrates that the assumptions are not over-constraining the design while preserving realistic transaction behavior.
+________________________________________
+## Formal Verification Environment
+The formal environment is organized independently from the simulation testbench to promote reuse and maintainability.
+```
+formal/
+├── axi_bridge.sby
+├── axi_bridge_cover.sby
+├── formal_top.sv
+└── properties.sv
+```
+* formal_top.sv instantiates the DUT and defines the formal environment.
+* properties.sv contains all assumptions, assertions, and cover properties.
+* axi_bridge.sby performs assertion-based safety proofs.
+* axi_bridge_cover.sby performs reachability analysis using cover properties.
+________________________________________
 ## Future Enhancements
 The current implementation establishes a reusable verification platform that can be extended with additional industry-standard verification capabilities, including:
 * Universal Verification Methodology (UVM)
