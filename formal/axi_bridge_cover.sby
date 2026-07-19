@@ -1,0 +1,17 @@
+[options]
+mode cover
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal -sv axi_lite_to_apb_bridge_flat.sv
+read -formal -sv properties.sv
+read -formal -sv formal_top.sv
+prep -top formal_top
+
+[files]
+axi_lite_to_apb_bridge_flat.sv
+properties.sv
+formal_top.sv

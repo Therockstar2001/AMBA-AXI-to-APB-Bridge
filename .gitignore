@@ -55,3 +55,11 @@ logs/
 # Python extras
 __pycache__/
 *.pyc
+
+# ------------------------------------------------------------------------------
+# SymbiYosys / Yosys Formal Verification Artifacts
+# ------------------------------------------------------------------------------
+
+# Generated proof and cover run directories
+/formal/axi_bridge/
+/formal/axi_bridge_cover/
