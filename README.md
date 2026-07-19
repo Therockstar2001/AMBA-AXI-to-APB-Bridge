@@ -1,4 +1,4 @@
-### AXI4-Lite to APB Bridge Design & Verification
+## AXI4-Lite to APB Bridge Design & Verification
 
 ## Project Overview
 This project implements and verifies a synthesizable AXI4-Lite to APB bridge that enables protocol-compliant communication between high-performance AXI-based masters and low-bandwidth APB peripherals commonly found in modern System-on-Chip (SoC) architectures. The bridge performs transaction-level protocol translation while preserving functional correctness, timing integrity, and error propagation across two fundamentally different bus protocols.
@@ -63,12 +63,12 @@ ________________________________________
 ________________________________________
 ## AXI Transaction Processing
 The bridge supports both AXI4-Lite read and write transactions through the independent AXI channels:
-# Write Path:
+### Write Path:
 * Write Address (AW)
 * Write Data (W)
 * Write Response (B)
 Because the AXI address and write data channels are independent, the bridge buffers incoming information until both address and data are available before initiating an APB write transaction.
-# Read Path:
+### Read Path:
 * Read Address (AR)
 * Read Data (R)
 Read requests are translated into APB read operations, with returned APB data forwarded to the AXI master through the AXI read response channel.
@@ -124,39 +124,39 @@ The slave model enables realistic functional verification without relying on ext
 ________________________________________
 ## Verification Architecture
 The project adopts a reusable transaction-level verification architecture composed of independently developed verification components.
-# Driver:
+### Driver:
 Generates protocol-compliant AXI stimulus and drives transactions onto the interface.
-# Monitor:
+### Monitor:
 Passively observes bus activity and reconstructs completed transactions without influencing DUT behavior.
-# Scoreboard:
+### Scoreboard:
 Implements self-checking verification by comparing observed DUT behavior against expected transaction results, automatically detecting data mismatches and protocol errors.
-# Functional Coverage:
+### Functional Coverage:
 Collects coverage information across transaction types, address usage, and error conditions to measure verification completeness.
 ________________________________________
 ## Verification Strategy
 Verification was performed using multiple complementary test methodologies.
-# Directed Testing:
+### Directed Testing:
 Deterministic stimulus validating:
 * Basic read operations
 * Basic write operations
 * Register correctness
 * Response generation
 ________________________________________
-# Constrained-Random Testing:
+### Constrained-Random Testing:
 Randomized transaction generation was used to exercise:
 * Various address locations
 * Mixed read/write traffic
 * Different transaction ordering
 * Corner-case protocol interactions
 ________________________________________
-# Error Injection
+### Error Injection
 Negative testing validates:
 * Invalid register accesses
 * Error response propagation
 * PSLVERR handling
 * AXI SLVERR generation
 ________________________________________
-# Wait-State Validation
+### Wait-State Validation
 Artificial APB wait states were introduced to verify:
 * Stable control signaling
 * Correct transaction completion
@@ -217,36 +217,36 @@ ________________________________________
 ## Proven Properties
 The formal verification environment establishes mathematical correctness for the following categories of properties:
 
-# Reset and Initialization
+### Reset and Initialization
 * Correct reset initialization of internal bridge state.
 * Safe recovery from reset without illegal protocol behavior.
 
-# FSM Correctness
+### FSM Correctness
 * Legal state transitions only.
 * No unreachable or invalid FSM states.
 * Deterministic transaction sequencing throughout bridge operation.
 
-# APB Protocol Compliance
+### APB Protocol Compliance
 * Correct two-phase APB transfer generation.
 * Stable address, control, and write data during APB wait states.
 * Proper handling of delayed PREADY responses.
 
-# AXI4-Lite Protocol Compliance
+### AXI4-Lite Protocol Compliance
 * Correct acceptance of independent AXI address and data channels.
 * Stable AXI responses while stalled by the master.
 * Correct request capture prior to APB transaction generation.
 * Proper response persistence until handshake completion.
 
-# Transaction Integrity
+### Transaction Integrity
 * Correct propagation of AXI write address and write data into APB transactions.
 * Correct propagation of APB read data back to the AXI read channel.
 * Preservation of transaction ordering across protocol translation.
 
-# Error Propagation
+### Error Propagation
 * Correct translation of APB PSLVERR into AXI SLVERR responses.
 * Verified behavior for both read and write error transactions.
 
-# Bounded Progress
+### Bounded Progress
 * Verification that accepted transactions complete within the defined bounded execution window under the specified fairness assumptions.
 * Prevention of illegal simultaneous outstanding read and write transactions within the bridge architecture.
 ________________________________________
