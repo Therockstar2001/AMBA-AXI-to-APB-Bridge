@@ -277,11 +277,9 @@ ________________________________________
 ## Future Enhancements
 The current implementation establishes a reusable verification platform that can be extended with additional industry-standard verification capabilities, including:
 * Universal Verification Methodology (UVM)
-* Assertion-Based Verification (SystemVerilog Assertions)
 * Coverage closure methodology
 * Multi-seed constrained-random regression
 * Functional coverage expansion
 * Performance and latency monitoring
-* Formal protocol verification
 * Advanced APB peripheral models
 * Support for additional AMBA protocol variants
