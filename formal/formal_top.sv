@@ -47,6 +47,8 @@ module formal_top;
     logic                      PWRITE;
     logic [DATA_WIDTH-1:0]     PWDATA;
     logic [2:0] FORMAL_STATE;
+    logic FORMAL_HAVE_AW;
+    logic FORMAL_HAVE_W;
 
     // Deterministic formal reset:
     // asserted initially and released after the first rising edge.
@@ -92,7 +94,9 @@ module formal_top;
         .PRDATA   (PRDATA),
         .PREADY   (PREADY),
         .PSLVERR  (PSLVERR),
-        .FORMAL_STATE (FORMAL_STATE)
+        .FORMAL_STATE (FORMAL_STATE),
+	.FORMAL_HAVE_AW (FORMAL_HAVE_AW),
+	.FORMAL_HAVE_W (FORMAL_HAVE_W)
     );
 
     axi_apb_properties #(
@@ -133,7 +137,9 @@ module formal_top;
         .PWRITE       (PWRITE),
         .PWDATA       (PWDATA),
 
-        .FORMAL_STATE (FORMAL_STATE)
+        .FORMAL_STATE (FORMAL_STATE),
+        .FORMAL_HAVE_AW (FORMAL_HAVE_AW),
+        .FORMAL_HAVE_W  (FORMAL_HAVE_W)
     );
 
 endmodule

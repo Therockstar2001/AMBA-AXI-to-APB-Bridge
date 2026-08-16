@@ -114,6 +114,31 @@ module axi_env_tb;
             tr.addr  = addr;
             tr.wdata = data;
             tr.wstrb = 4'hF;
+	    tr.aw_delay = 0;
+	    tr.w_delay = 0;
+            drv.drive(tr);
+        end
+    endtask
+
+    task automatic do_write_skew(
+        input [31:0] addr,
+        input [31:0] data,
+        input int unsigned aw_delay,
+        input int unsigned w_delay
+    );
+        axi_lite_trans tr;
+
+        begin
+            tr = new();
+
+            tr.write = 1'b1;
+            tr.addr  = addr;
+            tr.wdata = data;
+            tr.wstrb = 4'hF;
+
+            tr.aw_delay = aw_delay;
+            tr.w_delay  = w_delay;
+
             drv.drive(tr);
         end
     endtask

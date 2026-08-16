@@ -43,7 +43,9 @@ module axi_lite_to_apb_bridge_flat #(
     input  logic [DATA_WIDTH-1:0]     PRDATA,
     input  logic                      PREADY,
     input  logic                      PSLVERR,
-    output logic [2:0]                FORMAL_STATE
+    output logic [2:0]                FORMAL_STATE,
+    output logic 		      FORMAL_HAVE_AW,
+    output logic 		      FORMAL_HAVE_W
 );
 
     typedef enum logic [2:0] {
@@ -66,18 +68,32 @@ module axi_lite_to_apb_bridge_flat #(
     logic [1:0]            bresp_reg;
     logic [1:0]            rresp_reg;
     logic [DATA_WIDTH-1:0] rdata_reg;
+    logic have_aw;
+    logic have_w;
+
+    logic aw_accept;
+    logic w_accept;
+    logic ar_accept;
+    logic write_start;
+
 
     // WSTRB is present at the AXI boundary but the current RTL bridge
     // supports full-word transfers and does not process byte strobes.
 
-    assign AWREADY = (state == IDLE) && WVALID;
-    assign WREADY  = (state == IDLE) && AWVALID;
+    assign AWREADY = (state == IDLE) && !have_aw;
+    assign WREADY  = (state == IDLE) && !have_w;
     assign ARREADY = (state == IDLE) &&
-                     !(AWVALID && WVALID);
+                     !have_aw && !have_w && !AWVALID && !WVALID;
 
     assign BRESP = bresp_reg;
     assign RRESP = rresp_reg;
     assign RDATA = rdata_reg;
+
+    assign aw_accept = AWVALID && AWREADY;
+    assign w_accept = WVALID && WREADY;
+    assign ar_accept = ARVALID && ARREADY;
+
+    assign write_start = (have_aw || aw_accept) && (have_w || w_accept);
 
     always_ff @(posedge ACLK or negedge ARESETn) begin
         if (!ARESETn)
@@ -91,9 +107,9 @@ module axi_lite_to_apb_bridge_flat #(
 
         case (state)
             IDLE: begin
-                if (AWVALID && WVALID)
+                if (write_start)
                     next_state = WRITE_SETUP;
-                else if (ARVALID)
+                else if (ar_accept)
                     next_state = READ_SETUP;
             end
 
@@ -133,22 +149,39 @@ module axi_lite_to_apb_bridge_flat #(
             addr_reg  <= '0;
             wdata_reg <= '0;
             write_en  <= 1'b0;
+	    have_aw   <= 1'b0;
+	    have_w    <= 1'b0;
             bresp_reg <= 2'b00;
             rresp_reg <= 2'b00;
             rdata_reg <= '0;
         end
         else begin
             if (state == IDLE) begin
-                if (AWVALID && WVALID) begin
-                    addr_reg  <= AWADDR;
-                    wdata_reg <= WDATA;
-                    write_en  <= 1'b1;
-                end
-                else if (ARVALID) begin
-                    addr_reg <= ARADDR;
-                    write_en <= 1'b0;
-                end
-            end
+
+    		if (aw_accept)
+        	    addr_reg <= AWADDR;
+
+    		if (w_accept)
+        	    wdata_reg <= WDATA;
+
+    		if (write_start) begin
+        	    write_en <= 1'b1;
+        	    have_aw  <= 1'b0;
+                    have_w   <= 1'b0;
+    		end
+    		else begin
+        	    if (aw_accept)
+            		have_aw <= 1'b1;
+
+        	    if (w_accept)
+            		have_w <= 1'b1;
+
+        	    if (ar_accept) begin
+            		addr_reg <= ARADDR;
+            		write_en <= 1'b0;
+        	    end
+    	        end
+	    end
 
             if ((state == WRITE_ACCESS) && PREADY)
                 bresp_reg <= PSLVERR ? 2'b10 : 2'b00;
@@ -177,5 +210,8 @@ module axi_lite_to_apb_bridge_flat #(
     assign BVALID = (state == WRITE_RESP);
     assign RVALID = (state == READ_RESP);
     assign FORMAL_STATE = state;
+    assign FORMAL_HAVE_AW = have_aw;
+    assign FORMAL_HAVE_W = have_w;
+
 
 endmodule

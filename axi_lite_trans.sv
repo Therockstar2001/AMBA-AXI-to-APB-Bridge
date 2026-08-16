@@ -9,6 +9,9 @@ package axi_lite_trans_sv_unit;
         rand bit [31:0] wdata;
         rand bit [3:0]  wstrb;
 
+	rand int unsigned aw_delay;
+	rand int unsigned w_delay;
+
         bit [31:0] rdata;
         bit [1:0]  bresp;
         bit [1:0]  rresp;
@@ -20,6 +23,16 @@ package axi_lite_trans_sv_unit;
         constraint c_align {
             addr[1:0] == 2'b00;
         }
+
+	constraint c_write_channel_skew {
+    	    aw_delay inside {[0:3]};
+            w_delay  inside {[0:3]};
+
+            if (!write) {
+                aw_delay == 0;
+                w_delay  == 0;
+    	    }
+	}
 
         constraint c_addr_space {
             addr inside {

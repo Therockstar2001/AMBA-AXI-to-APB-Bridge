@@ -24,6 +24,14 @@ module axi_lite_to_apb_bridge #(
     logic [DATA_WIDTH-1:0] wdata_reg;
     logic                  write_en;
 
+    logic have_aw;
+    logic have_w;
+
+    logic aw_accept; 
+    logic w_accept;
+    logic ar_accept;
+    logic write_start;
+
     logic [1:0] bresp_reg;
     logic [1:0] rresp_reg;
     logic [DATA_WIDTH-1:0] rdata_reg;
@@ -31,9 +39,37 @@ module axi_lite_to_apb_bridge #(
     // -----------------------------
     // AXI READY SIGNALS
     // -----------------------------
-    assign axi.AWREADY = (state == IDLE);
-    assign axi.WREADY  = (state == IDLE);
-    assign axi.ARREADY = (state == IDLE);
+    // ------------------------------------------------------------
+    // Independent AXI write-channel acceptance
+    // ------------------------------------------------------------
+
+    assign axi.AWREADY =
+       (state == IDLE) &&
+       !have_aw;
+
+    assign axi.WREADY =
+       (state == IDLE) &&
+       !have_w;
+
+    // Read is accepted only when there is no partial or incoming
+    // write request. This preserves write priority and prevents
+    // accepting a read while one half of a write is buffered.
+    assign axi.ARREADY =
+        (state == IDLE) &&
+        !have_aw &&
+        !have_w &&
+        !axi.AWVALID &&
+        !axi.WVALID;
+
+    assign aw_accept = axi.AWVALID && axi.AWREADY;
+    assign w_accept  = axi.WVALID  && axi.WREADY;
+    assign ar_accept = axi.ARVALID && axi.ARREADY;
+
+    // A write may begin when both components are available,
+    // whether captured previously or accepted this cycle.
+    assign write_start =
+        (have_aw || aw_accept) &&
+        (have_w  || w_accept);
 
     // -----------------------------
     // AXI RESPONSE OUTPUTS
@@ -60,9 +96,9 @@ module axi_lite_to_apb_bridge #(
 
         case (state)
             IDLE: begin
-                if (axi.AWVALID && axi.WVALID)
+                if (write_start)
                     next_state = WRITE_SETUP;
-                else if (axi.ARVALID)
+                else if (ar_accept)
                     next_state = READ_SETUP;
             end
 
@@ -106,20 +142,46 @@ module axi_lite_to_apb_bridge #(
             addr_reg  <= '0;
             wdata_reg <= '0;
             write_en  <= 1'b0;
+	    have_aw <= 1'b0;
+	    have_w <= 1'b0;
             bresp_reg <= 2'b00;
             rresp_reg <= 2'b00;
             rdata_reg <= '0;
         end
         else begin
             if (state == IDLE) begin
-                if (axi.AWVALID && axi.WVALID) begin
-                    addr_reg  <= axi.AWADDR;
+
+                // Capture AW independently.
+                if (aw_accept)
+                    addr_reg <= axi.AWADDR;
+
+                // Capture W independently.
+                if (w_accept)
                     wdata_reg <= axi.WDATA;
-                    write_en  <= 1'b1;
+
+      	        // Both write components are now available and will be
+                // consumed by the APB write transaction.
+                if (write_start) begin
+                    write_en <= 1'b1;
+
+                    have_aw <= 1'b0;
+                    have_w  <= 1'b0;
                 end
-                else if (axi.ARVALID) begin
-                    addr_reg <= axi.ARADDR;
-                    write_en <= 1'b0;
+                else begin
+                    // Preserve partial write information while waiting
+                    // for the other independent AXI channel.
+                    if (aw_accept)
+                        have_aw <= 1'b1;
+
+                    if (w_accept)
+                        have_w <= 1'b1;
+
+                    // A read can only be accepted when no write component
+                    // is pending or arriving.
+                    if (ar_accept) begin
+                        addr_reg <= axi.ARADDR;
+                        write_en <= 1'b0;
+                    end
                 end
             end
 

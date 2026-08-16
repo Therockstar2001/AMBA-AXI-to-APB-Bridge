@@ -24,40 +24,73 @@ class axi_lite_driver;
     // WRITE CHANNEL
     // ------------------------------------------------------------
     task drive_write(axi_lite_trans tr);
-        begin
-            // AW + W phase
-            @(negedge vif.ACLK);
-            vif.AWADDR  <= tr.addr;
-            vif.AWVALID <= 1'b1;
 
-            vif.WDATA   <= tr.wdata;
-            vif.WSTRB   <= tr.wstrb;
-            vif.WVALID  <= 1'b1;
+        vif.BREADY <= 1'b0;
 
-            vif.BREADY  <= 1'b0;
+        fork
 
-            // Wait for handshake
-            wait (vif.AWREADY && vif.WREADY);
+            // --------------------------------------------------------
+            // Independent AW channel
+            // --------------------------------------------------------
+            begin
+                repeat (tr.aw_delay)
+                    @(posedge vif.ACLK);
 
-            @(negedge vif.ACLK);
-            vif.AWVALID <= 1'b0;
-            vif.WVALID  <= 1'b0;
+                @(negedge vif.ACLK);
 
-            // Response phase
-            vif.BREADY <= 1'b1;
+                vif.AWADDR  <= tr.addr;
+                vif.AWVALID <= 1'b1;
 
-            wait (vif.BVALID);
+                do begin
+                    @(posedge vif.ACLK);
+                end
+                while (!vif.AWREADY);
 
-            tr.bresp = vif.BRESP;
+                @(negedge vif.ACLK);
+                vif.AWVALID <= 1'b0;
+            end
 
-            // Critical: allow FSM to exit
-            @(posedge vif.ACLK);
+            // --------------------------------------------------------
+            // Independent W channel
+            // --------------------------------------------------------
+            begin
+                repeat (tr.w_delay)
+                    @(posedge vif.ACLK);
 
-            @(negedge vif.ACLK);
-            vif.BREADY <= 1'b0;
+                @(negedge vif.ACLK);
 
-            tr.display("DRV_WRITE");
-        end
+                vif.WDATA  <= tr.wdata;
+                vif.WSTRB  <= tr.wstrb;
+                vif.WVALID <= 1'b1;
+ 
+                do begin
+                    @(posedge vif.ACLK);
+                end
+                while (!vif.WREADY);
+
+                @(negedge vif.ACLK);
+                vif.WVALID <= 1'b0;
+            end
+
+        join
+
+        // ------------------------------------------------------------
+        // Write response
+        // ------------------------------------------------------------
+        @(negedge vif.ACLK);
+        vif.BREADY <= 1'b1;
+
+        wait (vif.BVALID);
+   
+        tr.bresp = vif.BRESP;
+
+        @(posedge vif.ACLK);
+ 
+        @(negedge vif.ACLK);
+        vif.BREADY <= 1'b0;
+
+        tr.display("DRV_WRITE");
+
     endtask
 
     // ------------------------------------------------------------

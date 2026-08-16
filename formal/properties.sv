@@ -46,7 +46,9 @@ module axi_apb_properties #(
     input logic [DATA_WIDTH-1:0]     PWDATA,
 
     // Formal-only FSM observation
-    input logic [2:0]                FORMAL_STATE
+    input logic [2:0]                FORMAL_STATE,
+    input logic 		     FORMAL_HAVE_AW,
+    input logic 		     FORMAL_HAVE_W
 );
 
     localparam logic [2:0] IDLE         = 3'd0;
@@ -192,8 +194,8 @@ module axi_apb_properties #(
 
             // Accept a new AXI write transaction.
             else if (!write_pending &&
-                     AWVALID && AWREADY &&
-                     WVALID  && WREADY) begin
+                     (FORMAL_HAVE_AW || (AWVALID && AWREADY)) &&
+                     (FORMAL_HAVE_W || (WVALID  && WREADY))) begin
                 write_pending        <= 1'b1;
                 write_progress_count <= 5'd0;
             end
@@ -357,9 +359,11 @@ module axi_apb_properties #(
 
     always_ff @(posedge ACLK) begin
         if (f_past_valid && !$past(ARESETn)) begin
-            assert (AWREADY == WVALID);
-            assert (WREADY  == AWVALID);
-            assert (ARREADY == !(AWVALID && WVALID));
+	    assert (FORMAL_HAVE_AW == 1'b0);
+	    assert (FORMAL_HAVE_W == 1'b0);
+            assert (AWREADY == 1'b1);
+            assert (WREADY  == 1'b1);
+            assert (ARREADY == (!AWVALID && !WVALID));
 
             assert (BVALID == 1'b0);
             assert (RVALID == 1'b0);
@@ -412,13 +416,19 @@ module axi_apb_properties #(
                 // write request has priority over read request
                 // ------------------------------------------------
                 IDLE: begin
-                    if ($past(AWVALID && WVALID))
-                        assert (FORMAL_STATE == WRITE_SETUP);
-                    else if ($past(ARVALID))
-                        assert (FORMAL_STATE == READ_SETUP);
-                    else
-                        assert (FORMAL_STATE == IDLE);
-                end
+    		    if ($past(
+        		(FORMAL_HAVE_AW || (AWVALID && AWREADY)) &&
+        		(FORMAL_HAVE_W  || (WVALID  && WREADY))
+    		    )) begin
+        		assert (FORMAL_STATE == WRITE_SETUP);
+    		    end
+    		    else if ($past(ARVALID && ARREADY)) begin
+        		assert (FORMAL_STATE == READ_SETUP);
+    		    end
+    		    else begin
+        		assert (FORMAL_STATE == IDLE);
+    		    end
+		end
 
                 // ------------------------------------------------
                 // APB write path
@@ -645,27 +655,62 @@ module axi_apb_properties #(
     // ============================================================
 
     /*
-     * AXI write-address and write-data channels are independent.
+     * AXI write-address and write-data channels are accepted
+     * independently and buffered using one-entry holding state.
      *
-     * Since this bridge currently does not expose separate address
-     * and data holding registers to the formal environment, it must
-     * not acknowledge only one half of a write transaction.
+     * APB write execution begins only after both the AW and W
+     * components of the AXI-Lite write transaction are available.
      */
+     always_ff @(posedge ACLK) begin
+	 if (f_past_valid && ARESETn) begin
+	     if (FORMAL_STATE == IDLE) begin
+		 assert (AWREADY == !FORMAL_HAVE_AW);
+		 assert (WREADY == !FORMAL_HAVE_W);
+	         assert(ARREADY == (!FORMAL_HAVE_AW && !FORMAL_HAVE_W && !AWVALID && !WVALID));
+  	     end 
+	     else begin
+		 assert (!AWREADY);
+		 assert (!WREADY);
+		 assert (!ARREADY);
+	     end
+	 end
+     end
 
-    always_ff @(posedge ACLK) begin
-        if (f_past_valid && ARESETn) begin
+     always_ff @(posedge ACLK) begin
+         if (f_past_valid && ARESETn && $past(ARESETn)) begin
 
-            // A write address must not be accepted without the
-            // corresponding write data being accepted.
-            if (AWVALID && AWREADY)
-                assert (WVALID && WREADY);
+             if ($past(
+                 AWVALID &&
+                 AWREADY &&
+                 !FORMAL_HAVE_W &&
+                 !(WVALID && WREADY)
+             )) begin
 
-            // Write data must not be accepted without the
-            // corresponding write address being accepted.
-            if (WVALID && WREADY)
-                assert (AWVALID && AWREADY);
-        end
-    end
+                 assert (FORMAL_STATE == IDLE);
+                 assert (FORMAL_HAVE_AW);
+                 assert (PADDR == $past(AWADDR));
+
+             end
+         end
+     end
+
+     always_ff @(posedge ACLK) begin
+         if (f_past_valid && ARESETn && $past(ARESETn)) begin
+
+             if ($past(
+                 WVALID &&
+                 WREADY &&
+                 !FORMAL_HAVE_AW &&
+                 !(AWVALID && AWREADY)
+             )) begin
+
+                 assert (FORMAL_STATE == IDLE);
+                 assert (FORMAL_HAVE_W);
+                 assert (PWDATA == $past(WDATA));
+
+             end
+         end
+     end
 
     /*
      * The current FSM can service only one new transaction from IDLE.
@@ -675,8 +720,8 @@ module axi_apb_properties #(
      */
     always_ff @(posedge ACLK) begin
         if (f_past_valid && ARESETn) begin
-            assert (!(
-                (AWVALID && AWREADY && WVALID && WREADY) &&
+            assert (!( (
+                (FORMAL_HAVE_AW || (AWVALID && AWREADY)) && (FORMAL_HAVE_W || (WVALID && WREADY))) &&
                 (ARVALID && ARREADY)
             ));
         end
@@ -810,22 +855,37 @@ module axi_apb_properties #(
     // must capture AWADDR and WDATA and present them on PADDR and
     // PWDATA during the following WRITE_SETUP state.
     // ------------------------------------------------------------
+
+
     always_ff @(posedge ACLK) begin
         if (f_past_valid && ARESETn && $past(ARESETn)) begin
 
-            if ($past(
-                AWVALID && AWREADY &&
-                WVALID  && WREADY
-            )) begin
-                assert (FORMAL_STATE == WRITE_SETUP);
+            if ($past(AWVALID && AWREADY)) begin
+                assert (PADDR == $past(AWADDR));
+            end
 
-                assert (PADDR  == $past(AWADDR));
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn && $past(ARESETn)) begin
+
+            if ($past(WVALID && WREADY)) begin
                 assert (PWDATA == $past(WDATA));
-                assert (PWRITE == 1'b1);
+            end
 
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn) begin
+
+            if (FORMAL_STATE == WRITE_SETUP) begin
                 assert (PSEL    == 1'b1);
                 assert (PENABLE == 1'b0);
+                assert (PWRITE  == 1'b1);
             end
+
         end
     end
 
@@ -1124,6 +1184,64 @@ module axi_apb_properties #(
                 read_pending &&
                 RVALID &&
                 RREADY
+            );
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn) begin
+            cover (
+                (FORMAL_STATE == IDLE) &&
+                FORMAL_HAVE_AW &&
+                !FORMAL_HAVE_W
+            );
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn) begin
+            cover (
+                (FORMAL_STATE == IDLE) &&
+                FORMAL_HAVE_W &&
+                !FORMAL_HAVE_AW
+            );
+        end
+    end
+  
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn && $past(ARESETn)) begin
+            cover (
+                (FORMAL_STATE == WRITE_SETUP) &&
+                $past(
+                    AWVALID && AWREADY &&
+                    WVALID  && WREADY
+                )
+            );
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn && $past(ARESETn)) begin
+            cover (
+                (FORMAL_STATE == WRITE_SETUP) &&
+                $past(
+                    FORMAL_HAVE_AW &&
+                    WVALID &&
+                    WREADY
+                )
+            );
+        end
+    end
+
+    always_ff @(posedge ACLK) begin
+        if (f_past_valid && ARESETn && $past(ARESETn)) begin
+            cover (
+                (FORMAL_STATE == WRITE_SETUP) &&
+                $past(
+                    FORMAL_HAVE_W &&
+                    AWVALID &&
+                    AWREADY
+                )
             );
         end
     end

@@ -83,6 +83,7 @@ package axi_lite_monitor_sv_unit;
                         tr.rresp = '0;
 
                         mon2scb.put(tr);
+		        mon2cov.put(tr);
                         tr.display("MON_WRITE");
 
                         have_aw = 1'b0;

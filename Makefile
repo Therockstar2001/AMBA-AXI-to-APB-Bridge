@@ -7,7 +7,7 @@
 SIM ?= modelsim
 
 # List of test cases to execute in regression
-TOPS = axi_basic_test axi_random_test axi_error_test
+TOPS = axi_basic_test axi_random_test axi_error_test axi_aw_w_independent_test
 
 # Design and Verification Source Files
 SRC = \
@@ -23,7 +23,8 @@ SRC = \
     axi_env_tb.sv \
     axi_basic_test.sv \
     axi_random_test.sv \
-    axi_error_test.sv
+    axi_error_test.sv \
+    axi_aw_w_independent_test.sv
 
 # ------------------------------------------------------------------------------
 # Simulator Tool Configurations
