@@ -1,0 +1,7 @@
+read_verilog -formal -sv ../axi_lite_if.sv
+read_verilog -formal -sv ../apb_if.sv
+read_verilog -formal -sv ../axi_lite_to_apb_bridge.sv
+
+hierarchy -check -top axi_lite_to_apb_bridge
+proc
+check
